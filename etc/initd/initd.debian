@@ -1,0 +1,131 @@
+#!/bin/sh
+#
+# chkconfig: - 39 35
+# description: Starts and stops the iSCSI target
+# debianized start-stop script
+
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
+DAEMON=/usr/sbin/ietd
+DAEMON_CACHE=/usr/sbin/ietd_cache
+OPTIONS=""
+PIDFILE=/var/run/ietd.pid
+PIDFILE_CACHE=/var/run/ietd_cache.pid
+
+if [ -f /lib/init/vars.sh ]; then
+	. /lib/init/vars.sh
+fi
+
+if [ -f /lib/lsb/init-functions ]; then
+	. /lib/lsb/init-functions
+fi
+
+if [ -f /etc/sysconfig/iscsi-target ]; then
+	. /etc/sysconfig/iscsi-target
+fi
+
+RETVAL=0
+
+ietd_start()
+{
+	echo "Starting iSCSI Target" "ietd"
+	#modprobe -q crc32c
+	#modprobe iscsi_trgt
+	start-stop-daemon --start --exec $DAEMON --pidfile $PIDFILE -- $OPTIONS
+	if [ $? -eq 0 ]; then
+		echo "Done."
+	else
+		echo "Failed."	
+	fi	
+}
+
+ietd_stop()
+{
+	echo "Stopping iSCSI Target" "ietd"
+	ietadm --op delete
+	start-stop-daemon --stop --exec $DAEMON --pidfile $PIDFILE
+	rm -f $PIDFILE
+	if [ $? -eq 0 ]; then
+		echo "Done."
+	else
+		echo "Failed."	
+	fi	
+}
+
+ietd_status()
+{
+	PID=`pidof ietd`
+	if [ $PID ]; then
+		echo "iSCSI Target (pid $PID) is running..."
+	else
+		echo "iSCSI Target is stopped."
+		exit 1
+	fi
+}
+
+ietd_cache_start()
+{
+	echo "Starting iSCSI Target" "ietd_cache"
+	
+	start-stop-daemon --start --exec $DAEMON_CACHE --pidfile $PIDFILE_CACHE -- $OPTIONS
+	if [ $? -eq 0 ]; then
+		echo "Done."
+	else
+		echo "Failed."	
+	fi	
+}
+
+ietd_cache_stop()
+{
+	echo "Stopping iSCSI Target" "ietd_cache"
+	#ietadm_cache --op delete
+	start-stop-daemon --stop --exec $DAEMON_CACHE --pidfile $PIDFILE_CACHE
+	rm -f $PIDFILE_CACHE
+	if [ $? -eq 0 ]; then
+		echo "Done."
+	else
+		echo "Failed."	
+	fi	
+}
+
+ietd_cache_status()
+{
+	PID=`pidof ietd_cache`
+	if [ $PID ]; then
+		echo "iSCSI Target ietd_cache(pid $PID) is running..."
+	else
+		echo "iSCSI Target ietd_cache is stopped."
+		exit 1
+	fi
+}
+
+case "$1" in
+  start)
+	modprobe -q crc32c
+	modprobe iscsi_trgt
+        ietd_cache_start
+        sleep 1
+        ietd_start
+        ;;
+  stop)
+        ietd_stop
+        ietd_cache_stop
+	rmmod iscsi_trgt
+	rmmod dcache
+        ;;
+  restart)
+  			ietd_stop
+        ietd_cache_stop
+				sleep 1
+				ietd_cache_start
+				ietd_start
+        ;;
+  status)
+				ietd_status
+				ietd_cache_status
+        ;;
+  *)
+        echo $"Usage: $0 {start|stop|restart|status}"
+        exit 1
+esac
+
+exit 0
