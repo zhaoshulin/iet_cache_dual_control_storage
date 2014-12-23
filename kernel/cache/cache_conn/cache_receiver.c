@@ -940,6 +940,58 @@ void del_pos_from_mesi(struct page_pos *pos, enum mesi from)
 	
  }
 
+ int is_page_in_mesi_list(struct dcache_page *dcache_page, enum mesi list)
+ {
+	struct dcache_page *iterator;
+
+	if(from == E){
+		spin_lock_irq(&e_list.e_lock);
+		list_for_each_entry(iterator, &e_list.E_LIST, mesi_list){
+			if(dcache_page->dcache == iterator->dcache && dcache_page->index == iterator->index){
+				cache_alert("this page is in E_list\n");
+				spin_unlock_irq(&e_list.e_lock);
+				return true;
+			}
+		}
+		spin_unlock_irq(&e_list.e_lock);
+		cache_alert("this page isnot in E_list\n");
+		return false;
+	}
+
+	else if(from == S){
+		spin_lock_irq(&s_list.s_lock);
+		list_for_each_entry(iterator, &s_list.S_LIST, mesi_list){
+			if(dcache_page->dcache == iterator->dcache && dcache_page->index == iterator->index){
+				cache_alert("this page is in S_list\n");
+				spin_unlock_irq(&s_list.s_lock);
+				return true;
+			}
+		}
+		spin_unlock_irq(&s_list.s_lock);
+		cache_alert("this page isnot in S_list\n");
+		return false;
+	}
+
+	else if(from == WAITING_ACK){
+		spin_lock_irq(&w_list.w_lock);
+		list_for_each_entry(iterator, &w_list.W_LIST, mesi_list){
+			if(dcache_page->dcache == iterator->dcache && dcache_page->index == iterator->index){
+				cache_alert("this page is in W_list\n");
+				spin_unlock_irq(&w_list.w_lock);
+				return true;
+			}
+		}
+		spin_unlock_irq(&w_list.w_lock);
+		cache_alert("this page isnot in W_list\n");
+		return false;
+	}
+
+	else{
+		cache_err("Err inputs: not E S WAITING_ACK\n");
+		return -EINVAL;
+	}
+ }
+
  /**
  * Have to already hold the page_lock before use this function.
  * Also, this dcache_page must have been built already.
@@ -1252,7 +1304,11 @@ static int receive_data_zsl(struct cache_connection * connection, struct packet_
 	if(!dcache_page){
 		cache_err("page cannot be found in radix_tree!\n");
 		return -EINVAl;
+	}else{
+		lock_page(dcache_page->page);
+		cache_alert("page has been found in radix_tree, and have got its page_lock.\n");
 	}
+	
 	move_page_from_to(dcache_page, from, to);
 	cache_alert("finish move_page_from_to.\n");
 
@@ -1271,7 +1327,8 @@ static int receive_data_zsl(struct cache_connection * connection, struct packet_
 		cache_err("err: rw_flag isnot READ or WRITE!\n");
 		return -EINVAL;
 	}
-	send_data_ack_zsl(connection, page_index, peer_seq, sector, from, to);
+	send_data_ack_zsl(connection, page_index, peer_seq, sector, from, to);	
+	unlock_page(dcache_page->page);
 	cache_alert("send_data_ack finished now.\n");
 
 
