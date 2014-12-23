@@ -354,6 +354,8 @@ int send_data_zsl(struct cache_connection*conn, pgoff_t page_index, struct page 
 	err = __send_command(conn, sock, P_DATA, sizeof(*p), NULL, size, from, to);
 	mutex_unlock(&sock->mutex);  /* locked by conn_prepare_command() */ 
 	cache_dbg("send_data: send cmd is finished. Now start to send data...\n");
+
+	
 	//2, send data_page
 	if(!err){
 		if(size == PAGE_SIZE){
@@ -368,7 +370,7 @@ int send_data_zsl(struct cache_connection*conn, pgoff_t page_index, struct page 
 			return err;
 	}
 
-	cache_dbg("send page_index = %ld ok.\n", (sector>>3));
+	cache_alert("send page_index = %ld ok.\n", (sector>>3));
 	return 0;
 }
 

@@ -985,7 +985,7 @@ again:
 				unlock_page(dcache_page->page);
 			}else{	/* Read Miss */
 				if(page_to_read){
-					dcache_page = dcache_read_get_free_page(dcache, 0);
+					dcache_page = dcache_read_get_free_page(dcache, 0);/*ÒÑ¾­ËøÒ³ÁË*/
 					if(!dcache_page)
 						break;
 				}else

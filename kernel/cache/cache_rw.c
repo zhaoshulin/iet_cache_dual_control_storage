@@ -681,7 +681,7 @@ static int _dcache_read_mpage_zsl(struct dcache *dcache, struct dcache_page **dc
 			BUG();
 		}
 
-
+/**
 				//1, send state
 				cache_alert("dcache_page->index = %ld\n", dcache_page->index);
 				cache_dbg("RM: send state start...\n");
@@ -737,9 +737,26 @@ static int _dcache_read_mpage_zsl(struct dcache *dcache, struct dcache_page **dc
 				}
 				cache_alert("RM: send data is totally ok now, enter into for again...\n");
 
-				
+**/			
+		cache_alert("try to send one page: index = %ld\n", dcache_page->index);
+		if(from == REQUEST_FROM_OUT && peer_is_good) {		
+			send_data_zsl(dcache->conn, dcache_page->index, dcache_page->page, \
+				(dcache_page->index)<<3, PAGE_SIZE, &req, NIL, E, CAUSED_BY_READ);
+			move_page_from_to(dcache_page, NIL, WAITING_ACK);
 
+			if(from == REQUEST_FROM_OUT && peer_is_good){
+				cache_alert("waiting for data_ack\n");
+				if(wait_for_completion_timeout(&req->done, HZ*15) == 0) {
+					cache_warn("timeout when wait for data ack.\n");
+					cache_request_dequeue(req); 						
+				}else
+					kmem_cache_free(cache_request_cache, req);
+				cache_alert("ok, get data_ack, go on!\n");
+			}
+		}
+		cache_alert("Have already sent one page: index = %ld\n", dcache_page->index);
 
+		
 		
 	}
 	

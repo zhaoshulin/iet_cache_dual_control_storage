@@ -1201,14 +1201,14 @@ static int receive_data_zsl(struct cache_connection * connection, struct packet_
 	struct page_pos *page_pos;
 	int err;
 	
-	from = pi->from;
-	to = pi->to;
+	from = p->from;
+	to = p->to;
 	rw = p -> rw;
 	page_index = p->page_index;
 	
 	cache_alert("receive_data: from = %d, to = %d, rw = %d, page_index = %ld\n", from, to, rw, page_index);
 
-	
+/**	
 	cache_dbg("calculate page_pos based on dcache and page_index...\n");
 	dcache_page = dcache_find_get_page_zsl(dcache, page_index);
 	if(!dcache_page){
@@ -1227,20 +1227,39 @@ static int receive_data_zsl(struct cache_connection * connection, struct packet_
 	//print_mesi_from_to(pi->from, pi->to);
 	cache_dbg("adjust mesi_lists finished now.\n");
 
-	cache_dbg("start to receive data...\n");
+**/
+
+
+	cache_alert("start to receive data...\n");
 	req = read_in_page(connection, sector, pi);
 	if (!req) {
 		cache_err("Error occurs when receive data.\n");
 		return -EIO;
 	}
-	cache_dbg("finish recving data.\n");
+	cache_alert("finish recving data.\n");
+
+
 
 	
-	cache_dbg("To write received data.\n");//这里导致了空指针，内核挂掉了
+	cache_alert("To write received data.\n");
 	_dcache_write((void *)dcache, req->pvec, req->pg_cnt, req->size, req->offset, REQUEST_FROM_PEER);
-	cache_dbg("write received data finished now.\n");
+	cache_alert("write received data finished now.\n");
+
+
+
+	cache_alert("To move_page_from_to.\n");
+	dcache_page = dcache_find_get_page_zsl(dcache, page_index);
+	if(!dcache_page){
+		cache_err("page cannot be found in radix_tree!\n");
+		return -EINVAl;
+	}
+	move_page_from_to(dcache_page, from, to);
+	cache_alert("finish move_page_from_to.\n");
+
 	
-	cache_dbg("start to send_data_ack...\n");
+
+	
+	cache_alert("start to send_data_ack...\n");
 	//cache_send_data_ack(connection, peer_seq, sector);
 	if(rw == CAUSED_BY_WRITE){
 		from = WAITING_ACK;
@@ -1253,9 +1272,9 @@ static int receive_data_zsl(struct cache_connection * connection, struct packet_
 		return -EINVAL;
 	}
 	send_data_ack_zsl(connection, page_index, peer_seq, sector, from, to);
-	cache_dbg("send_data_ack finished now.\n");
+	cache_alert("send_data_ack finished now.\n");
 
-	//_dcache_write((void *)dcache, req->pvec, req->pg_cnt, req->size, req->offset, REQUEST_FROM_PEER);
+
 
 	kfree(pi->data);
 	kfree(pi);
