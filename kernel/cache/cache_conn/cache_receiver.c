@@ -940,319 +940,186 @@ void del_pos_from_mesi(struct page_pos *pos, enum mesi from)
 	
  }
 
- int move_pos_from_to(struct page_pos *pos, enum mesi from, enum mesi to)
+ /**
+ * Have to already hold the page_lock before use this function.
+ * Also, this dcache_page must have been built already.
+ */
+int move_page_from_to(struct dcache_page *dcache_page, enum mesi from, enum mesi to)
 {
-	int err ;
-	struct page_pos *iterator;
-/**
-	switch (from){
-			case M:
-				err = is_pos_in_mesi_list(pos, M);
-				if(err == false)
-				{
-					cache_err("err: pos isnot in M!\n");
-					return -EINVAL;
-				}
-				break;
-			case E:
-				err = is_pos_in_mesi_list(pos, E);
-				if(err == false){
-					cache_err("err: pos isnot in E!\n");
-					return -EINVAL;
-				}
-				break;
-			case S:
-				err = is_pos_in_mesi_list(pos, S);
-				if(err == false){
-					cache_err("err: pos isnot in S!\n");
-					return -EINVAL;
-				}
-				break;
-			case I:
-				err = is_pos_in_mesi_list(pos, I);
-				if(err == false){
-					cache_err("err: pos isnot in I!\n");
-					return -EINVAL;
-				}
-				break;
-			case WAITING_ACK:
-				err = is_pos_in_mesi_list(pos, WAITING_ACK);
-				if(err == false){
-					cache_err("err: pos isnot in WAITING_ACK!\n");
-					return -EINVAL;
-				}
-				break;
-			default:
-				break;
+	struct dcache_page *iterator;
+	
+	if(from == E && to == S){
+	/* E -> S */
+	spin_lock_irq(&e_list.e_lock);
+	spin_lock_irq(&s_list.s_lock);
+	cache_alert("have got e_lock and s_lock\n");
+	list_for_each_entry(iterator, &e_list.E_LIST, mesi_list){
+		cache_alert("going through e_list...\n");
+		if(dcache_page->dcache == iterator->dcache && dcache_page->index == iterator->index){
+			list_move(&iterator->mesi_list, &s_list.S_LIST);
+			spin_unlock_irq(&s_list.s_lock);
+			spin_unlock_irq(&e_list.e_lock);
+			cache_alert("have free s_lock and e_lock\n");
+			cache_alert("E -> S\n");
+			return 0;
 		}
-
-**/
-
-	switch (from){
-		case M:
-			spin_lock_irq(&m_list.m_lock);
-			switch (to){
-				case E:
-					spin_lock_irq(&e_list.e_lock);
-					list_for_each_entry(iterator,&m_list.M_LIST, list){
-						if(pos->page_index == iterator->page_index){
-							list_move(&iterator->list, &e_list.E_LIST);
-							spin_unlock_irq(&e_list.e_lock);
-							spin_unlock_irq(&m_list.m_lock);
-							return 0;
-						}						
-					}
-
-				case S:
-					spin_lock_irq(&s_list.s_lock);
-					list_for_each_entry(iterator,&m_list.M_LIST, list){
-						if(pos->page_index == iterator->page_index){
-							list_move(&iterator->list, &s_list.S_LIST);
-							spin_unlock_irq(&s_list.s_lock);
-							spin_unlock_irq(&m_list.m_lock);
-							return 0;
-						}						
-					}
-
-				case I:
-					spin_lock_irq(&i_list.i_lock);
-					list_for_each_entry(iterator,&m_list.M_LIST, list){
-						if(pos->page_index == iterator->page_index){
-							list_move(&iterator->list, &i_list.I_LIST);
-							spin_unlock_irq(&i_list.i_lock);
-							spin_unlock_irq(&m_list.m_lock);
-							return 0;
-						}						
-					}
-
-					
-				case WAITING_ACK:
-					spin_lock_irq(&w_list.w_lock);
-					list_for_each_entry(iterator,&m_list.M_LIST, list){
-						if(pos->page_index == iterator->page_index){
-							list_move(&iterator->list, &w_list.W_LIST);
-							spin_unlock_irq(&w_list.w_lock);
-							spin_unlock_irq(&w_list.w_lock);
-							return 0;
-						}						
-					}
-
-				default:
-					return -EINVAL;
-
-			}
-		case E:
-			spin_lock_irq(&e_list.e_lock);
-			switch (to){
-				case M:
-					spin_lock_irq(&m_list.m_lock);
-					list_for_each_entry(iterator,&e_list.E_LIST, list){
-						if(pos->page_index == iterator->page_index){
-							list_move(&iterator->list, &m_list.M_LIST);
-							spin_unlock_irq(&m_list.m_lock);
-							spin_unlock_irq(&e_list.e_lock);
-							return 0;
-						}						
-					}
-
-				case S:
-					spin_lock_irq(&s_list.s_lock);
-					list_for_each_entry(iterator,&e_list.E_LIST, list){
-						if(pos->page_index == iterator->page_index){
-							list_move(&iterator->list, &s_list.S_LIST);
-							spin_unlock_irq(&s_list.s_lock);
-							spin_unlock_irq(&e_list.e_lock);
-							return 0;
-						}						
-					}
-
-				case I:
-					spin_lock_irq(&i_list.i_lock);
-					list_for_each_entry(iterator,&e_list.E_LIST, list){
-						if(pos->page_index == iterator->page_index){
-							list_move(&iterator->list, &i_list.I_LIST);
-							spin_unlock_irq(&i_list.i_lock);
-							spin_unlock_irq(&e_list.e_lock);
-							return 0;
-						}						
-					}
-
-				case WAITING_ACK:
-					list_for_each_entry(iterator,&e_list.E_LIST, list){
-						if(pos->page_index == iterator->page_index){
-							list_move(&iterator->list, &w_list.W_LIST);
-							spin_unlock_irq(&w_list.w_lock);
-							spin_unlock_irq(&e_list.e_lock);
-							return 0;
-						}						
-					}
-
-				default:
-					return -EINVAL;
-			}
-
-		case S:
-			spin_lock_irq(&s_list.s_lock);
-			switch (to){
-				case M:
-					spin_lock_irq(&m_list.m_lock);
-					list_for_each_entry(iterator,&s_list.S_LIST, list){
-						if(pos->page_index == iterator->page_index){
-							list_move(&iterator->list, &m_list.M_LIST);
-							spin_unlock_irq(&m_list.m_lock);
-							spin_unlock_irq(&s_list.s_lock);
-							return 0;
-						}						
-					}
-
-
-				case E:
-					spin_lock_irq(&e_list.e_lock);
-					list_for_each_entry(iterator,&s_list.S_LIST, list){
-						if(pos->page_index == iterator->page_index){
-							list_move(&iterator->list, &e_list.E_LIST);
-							spin_unlock_irq(&e_list.e_lock);
-							spin_unlock_irq(&s_list.s_lock);
-							return 0;
-						}						
-					}
-				
-				case I:
-					spin_lock_irq(&i_list.i_lock);
-					list_for_each_entry(iterator,&s_list.S_LIST, list){
-						if(pos->page_index == iterator->page_index){
-							list_move(&iterator->list, &i_list.I_LIST);
-							spin_unlock_irq(&i_list.i_lock);
-							spin_unlock_irq(&s_list.s_lock);
-							return 0;
-						}						
-					}
-
-				case WAITING_ACK:
-					spin_lock_irq(&w_list.w_lock);
-					list_for_each_entry(iterator,&s_list.S_LIST, list){
-						if(pos->page_index == iterator->page_index){
-							list_move(&iterator->list, &w_list.W_LIST);
-							spin_unlock_irq(&w_list.w_lock);
-							spin_unlock_irq(&s_list.s_lock);
-							return 0;
-						}						
-					}
-
-				default:
-					return -EINVAL;
-			}
-
-		case I:
-			spin_lock_irq(&i_list.i_lock);
-			switch (to){
-				case M:
-					spin_lock_irq(&m_list.m_lock);
-					list_for_each_entry(iterator,&i_list.I_LIST, list){
-						if(pos->page_index == iterator->page_index){
-							list_move(&iterator->list, &m_list.M_LIST);
-							spin_unlock_irq(&m_list.m_lock);
-							spin_unlock_irq(&i_list.i_lock);
-							return 0;
-						}						
-					}
-
-				case E:
-					spin_lock_irq(&e_list.e_lock);
-					list_for_each_entry(iterator,&i_list.I_LIST, list){
-						if(pos->page_index == iterator->page_index){
-							list_move(&iterator->list, &e_list.E_LIST);
-							spin_unlock_irq(&e_list.e_lock);
-							spin_unlock_irq(&i_list.i_lock);
-							return 0;
-						}						
-					}
-
-
-				case S:
-					spin_lock_irq(&s_list.s_lock);
-					list_for_each_entry(iterator,&i_list.I_LIST, list){
-						if(pos->page_index == iterator->page_index){
-							list_move(&iterator->list, &s_list.S_LIST);
-							spin_unlock_irq(&s_list.s_lock);
-							spin_unlock_irq(&i_list.i_lock);
-							return 0;
-						}						
-					}
-
-				case WAITING_ACK:
-					spin_lock_irq(&w_list.w_lock);
-					list_for_each_entry(iterator,&i_list.I_LIST, list){
-						if(pos->page_index == iterator->page_index){
-							list_move(&iterator->list, &w_list.W_LIST);
-							spin_unlock_irq(&w_list.w_lock);
-							spin_unlock_irq(&i_list.i_lock);
-							return 0;
-						}						
-					}
-
-				default:
-					return -EINVAL;
-			}
-
-		case WAITING_ACK:
-			spin_lock_irq(&w_list.w_lock);
-			switch (to){
-				case M:
-					spin_lock_irq(&m_list.m_lock);
-					list_for_each_entry(iterator,&w_list.W_LIST, list){
-						if(pos->page_index == iterator->page_index){
-							list_move(&iterator->list, &m_list.M_LIST);
-							spin_unlock_irq(&m_list.m_lock);
-							spin_unlock_irq(&w_list.w_lock);
-							return 0;
-						}						
-					}
-
-
-				case E:
-					spin_lock_irq(&e_list.e_lock);
-					list_for_each_entry(iterator,&w_list.W_LIST, list){
-						if(pos->page_index == iterator->page_index){
-							list_move(&iterator->list, &e_list.E_LIST);
-							spin_unlock_irq(&e_list.e_lock);
-							spin_unlock_irq(&w_list.w_lock);
-							return 0;
-						}						
-					}
-
-
-				case S:
-					spin_lock_irq(&s_list.s_lock);
-					list_for_each_entry(iterator,&w_list.W_LIST, list){
-						if(pos->page_index == iterator->page_index){
-							list_move(&iterator->list, &s_list.S_LIST);
-							spin_unlock_irq(&s_list.s_lock);
-							spin_unlock_irq(&w_list.w_lock);
-							return 0;
-						}						
-					}
-
-				case I:
-					spin_lock_irq(&i_list.i_lock);
-					list_for_each_entry(iterator,&w_list.W_LIST, list){
-						if(pos->page_index == iterator->page_index){
-							list_move(&iterator->list, &i_list.I_LIST);
-							spin_unlock_irq(&i_list.i_lock);
-							spin_unlock_irq(&w_list.w_lock);
-							return 0;
-						}						
-					}
-
-				default:
-					return -EINVAL;
-			}
-		default:
-			return -EINVAL;
 	}
-	return 0;
-}
+	spin_unlock_irq(&s_list.s_lock);
+	spin_unlock_irq(&e_list.e_lock);
+	cache_err("Logical Err: cannot find dcache_page in E_list!\n");
+	return -EINVAL;
+	
+	}
 
+	else if(from == E && to == WAITING_ACK){
+	/* E -> WAITING_ACK */
+	spin_lock_irq(&e_list.e_lock);
+	spin_lock_irq(&w_list.w_lock);
+	cache_alert("have got e_lock and w_lock\n");
+	list_for_each_entry(iterator, &e_list.E_LIST, mesi_list){
+		cache_alert("going through e_list...\n");
+		if(dcache_page->dcache == iterator->dcache && dcache_page->index == iterator->index){
+			list_move(&iterator->mesi_list, &w_list.W_LIST);
+			spin_unlock_irq(&w_list.w_lock);
+			spin_unlock_irq(&e_list.e_lock);
+			cache_alert("have free w_lock and e_lock\n");
+			cache_alert("E -> WAITING_ACK\n");
+			return 0;
+		}
+	}
+	spin_unlock_irq(&w_list.w_lock);
+	spin_unlock_irq(&e_list.e_lock);
+	cache_err("Logical Err: cannot find dcache_page in E_list!\n");
+	return -EINVAL;	
+	}
+
+	else if(from == S && to == E){
+	/* S -> E */
+	spin_lock_irq(&e_list.e_lock);
+	spin_lock_irq(&s_list.s_lock);
+	cache_alert("have got e_lock and s_lock\n");
+	list_for_each_entry(iterator, &s_list.S_LIST, mesi_list){
+		cache_alert("going through s_list...\n");
+		if(dcache_page->dcache == iterator->dcache && dcache_page->index == iterator->index){
+			list_move(&iterator->mesi_list, &e_list.E_LIST);
+			spin_unlock_irq(&s_list.s_lock);
+			spin_unlock_irq(&e_list.e_lock);
+			cache_alert("have free s_lock and e_lock\n");
+			cache_alert("S -> E\n");
+			return 0;
+		}
+	}
+	spin_unlock_irq(&s_list.s_lock);
+	spin_unlock_irq(&e_list.e_lock);
+	cache_err("Logical Err: cannot find dcache_page in S_list!\n");
+	return -EINVAL;	
+	}
+
+	else if(from == S && to == WAITING_ACK){
+	/* S -> WAITING_ACK */
+	spin_lock_irq(&s_list.s_lock);
+	spin_lock_irq(&w_list.w_lock);
+	cache_alert("have got s_lock and w_lock\n");
+	list_for_each_entry(iterator, &s_list.S_LIST, mesi_list){
+		cache_alert("going through s_list...\n");
+		if(dcache_page->dcache == iterator->dcache && dcache_page->index == iterator->index){
+			list_move(&iterator->mesi_list, &w_list.W_LIST);
+			spin_unlock_irq(&w_list.w_lock);
+			spin_unlock_irq(&s_list.s_lock);
+			cache_alert("have free w_lock and s_lock\n");
+			cache_alert("S -> WAITING_ACK\n");
+			return 0;
+		}
+	}
+	spin_unlock_irq(&w_list.w_lock);
+	spin_unlock_irq(&s_list.s_lock);
+	cache_err("Logical Err: cannot find dcache_page in S_list!\n");
+	return -EINVAL;	
+	}
+
+	else if(from == WAITING_ACK && to == E){
+	/* WAITING_ACK -> E */
+	spin_lock_irq(&e_list.e_lock);
+	spin_lock_irq(&w_list.w_lock);
+	cache_alert("have got e_lock and w_lock\n");
+	list_for_each_entry(iterator, &w_list.W_LIST, mesi_list){
+		cache_alert("going through w_list...\n");
+		if(dcache_page->dcache == iterator->dcache && dcache_page->index == iterator->index){
+			list_move(&iterator->mesi_list, &e_list.E_LIST);
+			spin_unlock_irq(&w_list.w_lock);
+			spin_unlock_irq(&e_list.e_lock);
+			cache_alert("have free w_lock and e_lock\n");
+			cache_alert("WAITING_ACK -> E\n");
+			return 0;
+		}
+	}
+	spin_unlock_irq(&w_list.w_lock);
+	spin_unlock_irq(&e_list.e_lock);
+	cache_err("Logical Err: cannot find dcache_page in W_list!\n");
+	return -EINVAL;	
+	}
+
+	else if(from == WAITING_ACK && to == S){
+	/* WAITING_ACK -> S */
+	spin_lock_irq(&s_list.s_lock);
+	spin_lock_irq(&w_list.w_lock);
+	cache_alert("have got s_lock and w_lock\n");
+	list_for_each_entry(iterator, &w_list.W_LIST, mesi_list){
+		cache_alert("going through w_list...\n");
+		if(dcache_page->dcache == iterator->dcache && dcache_page->index == iterator->index){
+			list_move(&iterator->mesi_list, &s_list.S_LIST);
+			spin_unlock_irq(&w_list.w_lock);
+			spin_unlock_irq(&s_list.s_lock);
+			cache_alert("have free w_lock and s_lock\n");
+			cache_alert("WAITING_ACK -> S\n");
+			return 0;
+		}
+	}
+	spin_unlock_irq(&w_list.w_lock);
+	spin_unlock_irq(&s_list.s_lock);
+	cache_err("Logical Err: cannot find dcache_page in W_list!\n");
+	return -EINVAL;	
+	}
+
+	else if(from == NIL && to == E){
+	/* Nil -> E */
+	spin_lock_irq(&e_list.e_lock);
+	cache_alert("have got e_lock\n");
+	list_add(&dcache_page->mesi_list, &e_list.E_LIST);
+	spin_unlock_irq(&e_list.e_lock);
+	cache_alert("have free e_lock\n");
+	cache_alert("NIL -> E\n");
+	return 0;
+	}
+
+	else if(from == NIL && to == S){
+	/* Nil -> S */
+	spin_lock_irq(&s_list.s_lock);
+	cache_alert("have got s_lock\n");
+	list_add(&dcache_page->mesi_list, &s_list.S_LIST);
+	spin_unlock_irq(&s_list.s_lock);
+	cache_alert("have free s_lock\n");
+	cache_alert("NIL -> S\n");
+	return 0;
+	}
+
+	else if(from == NIL && to == WAITING_ACK){
+	/* Nil -> WAITING_ACK */
+	spin_lock_irq(&w_list.w_lock);
+	cache_alert("have got w_lock\n");
+	list_add(&dcache_page->mesi_list, &w_list.W_LIST);
+	spin_unlock_irq(&w_list.w_lock);
+	cache_alert("have free w_lock\n");
+	cache_alert("NIL -> WAINTING_ACK\n");
+	return 0;
+	}
+
+	else{
+		cache_alert("not used yet \n");
+		return 0;
+	}
+}
+ 
 static int receive_data(struct cache_connection * connection, struct packet_info * pi)
 //mesi ÔÚpiÖĞÁË	
 {
