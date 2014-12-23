@@ -450,9 +450,11 @@ int send_state_ack_zsl(struct cache_connection *connection, pgoff_t index,  u32 
 int is_pos_in_mesi_list(struct page_pos *pos, enum mesi mesi);
 void add_pos_from_NEW_to_I(struct page_pos *pos); 
 void del_pos_from_mesi(struct page_pos *pos, enum mesi from);
+int is_page_in_mesi_list(struct dcache_page *dcache_page, enum mesi list);
 
 int move_pos_from_to(struct page_pos *pos, enum mesi from, enum mesi to);
 int move_pos_from_to_zsl(struct page_pos *pos, enum mesi from, enum mesi to);
+int move_page_from_to(struct dcache_page *dcache_page, enum mesi from, enum mesi to);
 
 void print_mesi_from_to(enum mesi from, enum mesi to);
 

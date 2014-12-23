@@ -940,7 +940,7 @@ void del_pos_from_mesi(struct page_pos *pos, enum mesi from)
 	
  }
 
- int is_page_in_mesi_list(struct dcache_page *dcache_page, enum mesi list)
+ int is_page_in_mesi_list(struct dcache_page *dcache_page, enum mesi from)
  {
 	struct dcache_page *iterator;
 
@@ -1303,7 +1303,7 @@ static int receive_data_zsl(struct cache_connection * connection, struct packet_
 	dcache_page = dcache_find_get_page_zsl(dcache, page_index);
 	if(!dcache_page){
 		cache_err("page cannot be found in radix_tree!\n");
-		return -EINVAl;
+		return -EINVAL;
 	}else{
 		lock_page(dcache_page->page);
 		cache_alert("page has been found in radix_tree, and have got its page_lock.\n");
