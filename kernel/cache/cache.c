@@ -363,6 +363,9 @@ again:
 	dcache_page->dirty_bitmap = 0x00;
 	lru_add_page(dcache_page);
 	atomic_dec(&dcache->dirty_pages);
+
+	/* S -> E */
+	move_page_from_to(dcache_page, S, E);
 	
 	unlock_page(dcache_page->page);
 
@@ -395,7 +398,7 @@ static int  dcache_write_page_zsl(void *dcachep, pgoff_t page_index, struct page
 	struct dcache_page *dcache_page;
 	//struct cache_request * req;
 	int err=0;
-	struct page_pos *page_pos;
+	//struct page_pos *page_pos;
 
 	cache_dbg("enter into dcache_write_page_zsl...\n");
 		
@@ -403,13 +406,15 @@ again:
 	dcache_page= dcache_find_get_page(dcache, page_index);
 
 	if(dcache_page == NULL){	/* Write Miss */
+
+/**
 		// 1, send state
 		cache_dbg("WM: 1, send_state start now...\n");
 		if(from == REQUEST_FROM_OUT && peer_is_good) {
 		//if(peer_is_good){
 			send_state_zsl(dcache->conn, page_index<<3, page_index, &req, NEW, I, CAUSED_BY_WRITE);
 
-			/*增加pos到Wait链表*/
+			//增加pos到Wait链表
 			page_pos = kmalloc(sizeof(struct page_pos), GFP_KERNEL);
 			page_pos->dcache = dcache;
 			page_pos->page_index = dcache_page->index;
@@ -433,8 +438,10 @@ again:
 	}
 		cache_dbg("WM: 1, send_state finished now.\n");
 
+**/
+
 		//2, write own_cache
-		cache_dbg("WM: 2, write own_cache start now...\n");
+		cache_dbg("WM:  write own_cache start now...\n");
 		if(dcache->owner)
 			decrease_dirty_ratio(dcache);
 		dcache_page=dcache_write_get_free_page(dcache);
@@ -470,13 +477,16 @@ again:
 		atomic_inc(&dcache->dirty_pages);
 
 		lru_write_miss_handle(dcache_page);
-		unlock_page(dcache_page->page);
+		//unlock_page(dcache_page->page);
 		
 		if(dcache->owner && over_bground_thresh(dcache))
 			wakeup_cache_flusher(dcache);
 
-		cache_dbg("WM: 2, write own_cache finished now.\n");
+		cache_dbg("WM:  write own_cache finished now.\n");
 
+
+
+/**
 		//3, send data
 		cache_dbg("WM: 3, send_data start now...\n");
 		if(from == REQUEST_FROM_OUT && peer_is_good) {
@@ -498,16 +508,46 @@ again:
 			}
 		}
 		cache_dbg("WM: 3, send_data finished now.\n");
+
+**/
+
+
+
+
+	/*发送数据*/
+	cache_alert("WM: to send data.\n");
+	if(from == REQUEST_FROM_OUT && peer_is_good) {
+		send_data_zsl(dcache->conn, page_index, \
+			page,  page_index<<3, PAGE_SIZE, &req, NIL, S, CAUSED_BY_WRITE);
+		move_page_from_to(dcache_page, NIL, WAITING_ACK);
+
+		if(from == REQUEST_FROM_OUT && peer_is_good){
+			cache_alert("waiting for data_ack\n");
+			if(wait_for_completion_timeout(&req->done, HZ*15) == 0){
+				cache_warn("timeout when wait for data ack.\n");
+				cache_request_dequeue(req);				
+			}else
+				kmem_cache_free(cache_request_cache, req);
+			cache_alert("ok. got data_ack, go on\n");
+		}
+	}
+	unlock_page(dcache_page->page);
+	cache_alert("have unlocked page_lock\n");
+	cache_alert("WM: finish sending data\n");
+
+		
 		
 	}else{		/* Write Hit */
 
+
+/**
 		// 1, send state
 		
 		cache_dbg("WH: 1, send_state start now...\n");
 		if(from == REQUEST_FROM_OUT && peer_is_good) {
 		//if(peer_is_good){
 			send_state_zsl(dcache->conn, page_index<<3, page_index, &req, NEW, I, CAUSED_BY_WRITE);
-			/*把pos从M S E移动到到Wait链表*/
+			//把pos从M S E移动到到Wait链表
 			page_pos = kmalloc(sizeof(struct page_pos), GFP_KERNEL);
 			page_pos->dcache = dcache;
 			page_pos->page_index = dcache_page->index;
@@ -542,11 +582,13 @@ again:
 			}
 		}
 		cache_dbg("WH: 1, send_state finished now.\n");
+**/
+
 
 
 		//2, write own_cache
 		
-		cache_dbg("WH: 2, write own_cache start now...\n");
+		cache_dbg("WH: write own_cache start now...\n");
 		lock_page(dcache_page->page);
 		
 		if(unlikely(dcache_page->dcache !=dcache || dcache_page->index != page_index)){
@@ -571,9 +613,11 @@ again:
 		dcache_page->dirty_bitmap |= bitmap;
 
 		lru_write_hit_handle(dcache_page);
-		unlock_page(dcache_page->page);
+//		unlock_page(dcache_page->page);
 		cache_dbg("WH: 2, write own_cache finished now.\n");
 	
+
+/**
 
 	//3, send data
 	
@@ -596,6 +640,40 @@ again:
 		}
 	}
 	cache_dbg("WH: 3, send_data finished now.\n");
+**/
+
+	cache_alert("WH: to send data\n");
+	if(from == REQUEST_FROM_OUT && peer_is_good) {
+		send_data_zsl(dcache->conn, page_index, \
+			page,  page_index<<3, PAGE_SIZE, &req, NIL, S, CAUSED_BY_WRITE);
+		if(is_page_in_mesi_list(dcache_page, E) == true){
+			move_page_from_to(dcache_page, E, WAITING_ACK);
+		}
+		else if(is_page_in_mesi_list(dcache_page, S) == true){
+			move_page_from_to(dcache_page, S, WAITING_ACK);
+		}
+		else{
+			cache_err("Logic err: write hit, but dcache_page is not in E/S list!\n");
+			//ignore this logic err just for now...
+		}
+		
+
+		if(from == REQUEST_FROM_OUT && peer_is_good){
+			cache_alert("waiting for data_ack\n");
+			if(wait_for_completion_timeout(&req->done, HZ*15) == 0){
+				cache_warn("timeout when wait for data ack.\n");
+				cache_request_dequeue(req);				
+			}else
+				kmem_cache_free(cache_request_cache, req);
+			cache_alert("ok. got data_ack, go on\n");
+		}
+	}
+	unlock_page(dcache_page->page);
+	cache_alert("have unlocked page_lock\n");
+	cache_alert("WH: finish sending data\n");
+
+
+
 
 	}
 	return err;

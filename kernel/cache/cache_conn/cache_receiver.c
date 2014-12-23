@@ -1605,6 +1605,7 @@ static int receive_wrote_zsl(struct cache_connection *connection, struct packet_
 		}
 		dcache_clean_page(dcache, index);
 
+/**
 		spin_lock_irq(&e_list.e_lock);
 		list_for_each_safe(pos, next, &e_list.E_LIST){
 			tmp_pos = list_entry(pos, struct page_pos, list);
@@ -1631,6 +1632,8 @@ static int receive_wrote_zsl(struct cache_connection *connection, struct packet_
 		spin_unlock_irq(&s_list.s_lock);
 		cache_err("Logic err: wrote_index is not in E and S lists!\n");
 		return -EINVAL;
+**/
+
 
 del_ok:
 	cache_alert("ok: delete one page_pos in E or S list finished\n");
@@ -1656,13 +1659,15 @@ static int receive_wrote_ack_zsl(struct cache_connection *connection, struct pac
 	struct p_wrote_ack *p = pi->data;
 	u32 seq_num = be32_to_cpu(p->seq_num);
 
+	cache_alert("Have received wrote ack.\n");
 	req = get_ready_request(connection, seq_num);
 	if(!req)
 		return 0;
 
 	complete(&req->done);
 
-	cache_alert("Have received wrote ack.\n");
+	
+	
 	return 0;
 }
 

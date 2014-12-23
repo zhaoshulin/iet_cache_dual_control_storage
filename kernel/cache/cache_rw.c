@@ -1022,6 +1022,10 @@ continue_unlock:
 			}
 			BUG_ON(PageWriteback(dcache_page->page));
 			dcache_test_set_page_writeback(dcache_page);
+			
+			/* S -> E */
+			move_page_from_to(dcache_page, S, E);
+			
 			unlock_page(dcache_page->page);
 
 			if(!mpd->bio)
@@ -1091,7 +1095,8 @@ continue_unlock:
 			goto error;
 		}
 		/*已经成功写回了页数组*/
-		
+
+			
 sync_again:
 		/* submit page index of written pages to peer */
 		if(peer_is_good && dcache->owner && wrote_index) {
@@ -1103,14 +1108,21 @@ sync_again:
 			if(err)
 				goto sync_again;
 			
-			cache_dbg("wait for wrote ack.\n");
+			cache_alert("wait for wrote ack.\n");
 			if(wait_for_completion_timeout(&req->done, HZ*15) == 0) {
 				cache_warn("timeout when wait for wrote ack.\n");
 				cache_request_dequeue(req);
 				goto sync_again;
 			}else{
 				kmem_cache_free(cache_request_cache, req);
-				cache_dbg("ok, get wrote ack, go on!\n");
+				
+				for (i = 0; i < nr_pages; i++) {
+					struct dcache_page *dcache_page = pages[i];
+					lock_page(dcache_page->page);
+					move_page_from_to(dcache_page, WAITING_ACK, E);
+					unlock_page(dcache_page->page);
+				}
+				cache_alert("ok, get wrote ack, go on!\n");
 			}			
 		}
 
