@@ -1029,8 +1029,14 @@ again:
 
 			if(dcache_page) {	/* Read Hit */
 
-			cache_alert("RH: just need to check if in E or S list...\n");
-			
+			cache_dbg("RH: just need to check if in E or S list...\n");
+			if(is_page_in_mesi_list(dcache_page, E) == true){
+				cache_alert("this page is in E_list\n");
+			}else if(is_page_in_mesi_list(dcache_page, S) == true){
+				cache_alert("this page is in S_list\n");
+			} else{
+				cache_err("Logic err: read hit, but this page is not in E or S list!!!\n");
+			}
 				
 				
 				if(!trylock_page(dcache_page->page)){

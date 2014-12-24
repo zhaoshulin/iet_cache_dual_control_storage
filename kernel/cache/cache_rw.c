@@ -754,7 +754,7 @@ static int _dcache_read_mpage_zsl(struct dcache *dcache, struct dcache_page **dc
 				cache_alert("ok, get data_ack, go on!\n");
 			}
 		}
-		cache_alert("Have already sent one page: index = %ld\n", dcache_page->index);
+		cache_alert("Have already sent one page: index = %ld\n\n", dcache_page->index);
 
 		
 		

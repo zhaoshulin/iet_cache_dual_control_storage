@@ -1329,7 +1329,7 @@ static int receive_data_zsl(struct cache_connection * connection, struct packet_
 	}
 	send_data_ack_zsl(connection, page_index, peer_seq, sector, from, to);	
 	unlock_page(dcache_page->page);
-	cache_alert("send_data_ack finished now.\n");
+	cache_alert("send_data_ack finished now.\n\n");
 
 
 
