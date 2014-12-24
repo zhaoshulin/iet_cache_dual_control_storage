@@ -1006,7 +1006,7 @@ int move_page_from_to(struct dcache_page *dcache_page, enum mesi from, enum mesi
 	spin_lock_irq(&s_list.s_lock);
 	cache_alert("have got e_lock and s_lock\n");
 	list_for_each_entry(iterator, &e_list.E_LIST, mesi_list){
-		cache_alert("going through e_list...\n");
+		cache_dbg("going through e_list...\n");
 		if(dcache_page->dcache == iterator->dcache && dcache_page->index == iterator->index){
 			list_move(&iterator->mesi_list, &s_list.S_LIST);
 			spin_unlock_irq(&s_list.s_lock);
@@ -1029,7 +1029,7 @@ int move_page_from_to(struct dcache_page *dcache_page, enum mesi from, enum mesi
 	spin_lock_irq(&w_list.w_lock);
 	cache_alert("have got e_lock and w_lock\n");
 	list_for_each_entry(iterator, &e_list.E_LIST, mesi_list){
-		cache_alert("going through e_list...\n");
+		cache_dbg("going through e_list...\n");
 		if(dcache_page->dcache == iterator->dcache && dcache_page->index == iterator->index){
 			list_move(&iterator->mesi_list, &w_list.W_LIST);
 			spin_unlock_irq(&w_list.w_lock);
@@ -1051,7 +1051,7 @@ int move_page_from_to(struct dcache_page *dcache_page, enum mesi from, enum mesi
 	spin_lock_irq(&s_list.s_lock);
 	cache_alert("have got e_lock and s_lock\n");
 	list_for_each_entry(iterator, &s_list.S_LIST, mesi_list){
-		cache_alert("going through s_list...\n");
+		cache_dbg("going through s_list...\n");
 		if(dcache_page->dcache == iterator->dcache && dcache_page->index == iterator->index){
 			list_move(&iterator->mesi_list, &e_list.E_LIST);
 			spin_unlock_irq(&s_list.s_lock);
@@ -1073,7 +1073,7 @@ int move_page_from_to(struct dcache_page *dcache_page, enum mesi from, enum mesi
 	spin_lock_irq(&w_list.w_lock);
 	cache_alert("have got s_lock and w_lock\n");
 	list_for_each_entry(iterator, &s_list.S_LIST, mesi_list){
-		cache_alert("going through s_list...\n");
+		cache_dbg("going through s_list...\n");
 		if(dcache_page->dcache == iterator->dcache && dcache_page->index == iterator->index){
 			list_move(&iterator->mesi_list, &w_list.W_LIST);
 			spin_unlock_irq(&w_list.w_lock);
@@ -1095,7 +1095,7 @@ int move_page_from_to(struct dcache_page *dcache_page, enum mesi from, enum mesi
 	spin_lock_irq(&w_list.w_lock);
 	cache_alert("have got e_lock and w_lock\n");
 	list_for_each_entry(iterator, &w_list.W_LIST, mesi_list){
-		cache_alert("going through w_list...\n");
+		cache_dbg("going through w_list...\n");
 		if(dcache_page->dcache == iterator->dcache && dcache_page->index == iterator->index){
 			list_move(&iterator->mesi_list, &e_list.E_LIST);
 			spin_unlock_irq(&w_list.w_lock);
@@ -1117,7 +1117,7 @@ int move_page_from_to(struct dcache_page *dcache_page, enum mesi from, enum mesi
 	spin_lock_irq(&w_list.w_lock);
 	cache_alert("have got s_lock and w_lock\n");
 	list_for_each_entry(iterator, &w_list.W_LIST, mesi_list){
-		cache_alert("going through w_list...\n");
+		cache_dbg("going through w_list...\n");
 		if(dcache_page->dcache == iterator->dcache && dcache_page->index == iterator->index){
 			list_move(&iterator->mesi_list, &s_list.S_LIST);
 			spin_unlock_irq(&w_list.w_lock);
@@ -1528,7 +1528,7 @@ static int receive_data_ack_zsl(struct cache_connection *connection, struct pack
 			from = pi->from;
 			to = pi->to;
 			rw = p->rw;
-			cache_alert("receive_data_ack: from = %d, to = %d, rw = %d.\n", from, to, rw);
+			cache_dbg("receive_data_ack: from = %d, to = %d, rw = %d.\n", from, to, rw);
 
 			cache_dbg("calculate dcache_page based on dcache and page_index...\n");
 			dcache_page = dcache_find_get_page_zsl(dcache, page_index);
