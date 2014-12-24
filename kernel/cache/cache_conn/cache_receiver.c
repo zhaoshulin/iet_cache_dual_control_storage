@@ -1544,12 +1544,16 @@ static int receive_data_ack_zsl(struct cache_connection *connection, struct pack
 				return -EINVAL;
 			}
 
+/**
 			reverse_pos = kmalloc(sizeof(struct page_pos), GFP_KERNEL);
 			reverse_pos->dcache = dcache;
 			reverse_pos->page_index = dcache_page->index;
 			move_pos_from_to_zsl(reverse_pos, from,to);	
 			//print_mesi_from_to(from, to);
 			//move_pos_from_to(dcache_page, from, to);
+
+**/
+			move_page_from_to(dcache_page, from, to);
 			cache_dbg("zsl: adjust mesi_lists finished.\n");
 			
 			req = get_ready_request(connection, seq_num);
