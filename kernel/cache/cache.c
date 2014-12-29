@@ -515,8 +515,9 @@ again:
 
 
 	/*·¢ËÍÊı¾İ*/
-	cache_alert("WM: to send data.\n");
+
 	if(from == REQUEST_FROM_OUT && peer_is_good) {
+		cache_alert("WM: to send data.\n");
 		send_data_zsl(dcache->conn, page_index, \
 			page,  page_index<<3, PAGE_SIZE, &req, NIL, S, CAUSED_BY_WRITE);
 		move_page_from_to(dcache_page, NIL, WAITING_ACK);
@@ -530,10 +531,12 @@ again:
 				kmem_cache_free(cache_request_cache, req);
 			cache_alert("ok. got data_ack, go on\n");
 		}
+		cache_alert("WM: finish sending data\n");
 	}
+	
 	unlock_page(dcache_page->page);
 	cache_alert("have unlocked page_lock\n");
-	cache_alert("WM: finish sending data\n");
+
 
 		
 		
@@ -642,8 +645,9 @@ again:
 	cache_dbg("WH: 3, send_data finished now.\n");
 **/
 
-	cache_alert("WH: to send data\n");
+	
 	if(from == REQUEST_FROM_OUT && peer_is_good) {
+		cache_alert("WH: to send data\n");
 		send_data_zsl(dcache->conn, page_index, \
 			page,  page_index<<3, PAGE_SIZE, &req, NIL, S, CAUSED_BY_WRITE);
 		if(is_page_in_mesi_list(dcache_page, E) == true){
@@ -667,10 +671,11 @@ again:
 				kmem_cache_free(cache_request_cache, req);
 			cache_alert("ok. got data_ack, go on\n");
 		}
+		cache_alert("WH: finish sending data\n");
 	}
 	unlock_page(dcache_page->page);
 	cache_alert("have unlocked page_lock\n");
-	cache_alert("WH: finish sending data\n");
+
 
 
 

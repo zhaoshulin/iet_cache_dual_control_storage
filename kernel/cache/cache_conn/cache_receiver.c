@@ -1252,13 +1252,17 @@ static int receive_data_zsl(struct cache_connection * connection, struct packet_
 	enum rwwb rw;
 	struct page_pos *page_pos;
 	int err;
+	char *what;
 	
 	from = p->from;
 	to = p->to;
 	rw = p -> rw;
 	page_index = p->page_index;
+	what = (rw == CAUSED_BY_READ)? "READ" : "WRITE";
 	
-	cache_alert("receive_data: from = %d, to = %d, rw = %d, page_index = %ld\n", from, to, rw, page_index);
+	cache_alert("page_index = %ld, rw = %s\n", page_index, what);
+	
+	cache_dbg("receive_data: from = %d, to = %d, rw = %d, page_index = %ld\n", from, to, rw, page_index);
 
 /**	
 	cache_dbg("calculate page_pos based on dcache and page_index...\n");
@@ -1306,7 +1310,7 @@ static int receive_data_zsl(struct cache_connection * connection, struct packet_
 		return -EINVAL;
 	}else{
 		lock_page(dcache_page->page);
-		cache_alert("page has been found in radix_tree, and have got its page_lock.\n");
+		cache_alert("page has been found in radix_tree, got its page_lock.\n");
 	}
 	
 	move_page_from_to(dcache_page, from, to);
@@ -1638,9 +1642,7 @@ static int receive_wrote_zsl(struct cache_connection *connection, struct packet_
 		return -EINVAL;
 **/
 
-
-del_ok:
-	cache_alert("ok: delete one page_pos in E or S list finished\n");
+	
 		
 	}
 
@@ -1671,7 +1673,8 @@ static int receive_wrote_ack_zsl(struct cache_connection *connection, struct pac
 	complete(&req->done);
 
 	
-	
+
+		
 	return 0;
 }
 
@@ -2107,11 +2110,14 @@ void cache_msocket_receive(struct cache_connection *connection)
 	int err = 0;
 
 	while (get_t_state(&connection->asender) == RUNNING) {
+		cache_alert("enter into while{} in cache_msocket_receive\n");
 		struct packet_info *pi;
 		struct data_cmd *cmd;
 		struct cache_work *work;
 		struct p_state *p_state;
 		struct p_state_ack *p_state_ack;
+		struct p_block_wrote *p_block_wrote;
+		struct p_wrote_ack *p_wrote_ack;
 		struct cio *req;
 
 		pi = kmalloc(sizeof(*pi), GFP_KERNEL);
@@ -2129,13 +2135,15 @@ void cache_msocket_receive(struct cache_connection *connection)
 		
 
 		/*接收命令，如P_STATE*/
+		cache_alert("start to cache_recv_header\n");
 		err = cache_recv_header(connection, &connection->state, pi);
 		if(err < 0){
 			if (err == -EAGAIN && peer_is_good)
 				continue;
 			goto err_out;
 		}
-		WARN_ON((pi->cmd != P_STATE) && (pi->cmd != P_STATE_ACK));
+		cache_alert("finish cache_recv_header\n");
+	//	WARN_ON((pi->cmd != P_STATE) && (pi->cmd != P_STATE_ACK) );
 
 		cmd = &cache_cmd_handler[pi->cmd];
 		if (unlikely(pi->cmd >= ARRAY_SIZE(cache_cmd_handler) || !cmd->fn)) {
@@ -2156,6 +2164,7 @@ void cache_msocket_receive(struct cache_connection *connection)
 		
 		/*P_STATE*/
 		if(pi->cmd == P_STATE){
+			cache_alert("P_STATE\n");
 			/*接收结构体*/
 			//pi->data = p_state;
 			//err = cache_recv_all_warn(&connection->state, p_state, shs);
@@ -2196,7 +2205,7 @@ void cache_msocket_receive(struct cache_connection *connection)
 			//cache_queue_work(&connection->sender_work, work);
 			}
 				else if(pi->cmd == P_STATE_ACK){
-		
+					cache_alert("P_STATE_ACK\n");
 					/*接收结构体*/
 					p_state_ack = kmalloc(sizeof(*p_state_ack), GFP_KERNEL);
 					if(!p_state_ack){
@@ -2231,10 +2240,86 @@ void cache_msocket_receive(struct cache_connection *connection)
 			work->cb = cmd->fn;
 			//cache_queue_work(&connection->sender_work, work);
 				}
+
+
+				else if(pi->cmd == P_DATA_WRITTEN){
+
+					cache_alert("DATA_WRITITEN\n");
+					/*接收结构体*/
+					p_block_wrote = kmalloc(sizeof(*p_block_wrote), GFP_KERNEL);
+					if(!p_block_wrote){
+						cache_alert("No free memory.\n");
+						kfree(pi);
+						kfree(work);
+					}
+					
+					if(shs){
+						err = cache_recv_all_warn(&connection->state, p_block_wrote, shs);
+						if (err)
+							goto err_out;
+						pi->size -= shs;
+					}
+					pi->data = p_block_wrote;
+					cache_dbg("recved p_wrote: from = %d, to = %d\n", p_block_wrote ->from, p_block_wrote->to);
+					cache_dbg("finish recving p_wrote.\n");
+		
+		
+				/*执行cmd*/
+				cache_alert("start to call cmd(wrote)...\n");
+				err = cmd->fn(connection, pi, NULL);//在这里执行了cmd 命令
+				if (err) {
+					cache_err("error receiving %s, e: %d l: %d!\n",
+					cmdname(pi->cmd), err, pi->size);
+					return;
+				}
+			cache_alert("finish calling cmd(wrote).\n");
+			
+			work->private = (void *)req;
+			work->info = pi;
+			work->cb = cmd->fn;
+			//cache_queue_work(&connection->sender_work, work);
+		}
+
+		else if(pi->cmd == P_WRITTEN_ACK){
+					cache_alert("WRITITEN_ACK\n");
+		
+					/*接收结构体*/
+					p_wrote_ack = kmalloc(sizeof(*p_wrote_ack), GFP_KERNEL);
+					if(!p_wrote_ack){
+						cache_alert("No free memory.\n");
+						kfree(pi);
+						kfree(work);
+					}
+					
+					if(shs){
+						err = cache_recv_all_warn(&connection->state, p_wrote_ack, shs);
+						if (err)
+							goto err_out;
+						pi->size -= shs;
+					}
+					pi->data = p_wrote_ack;
+					cache_dbg("recved p_wrote_ack: from = %d, to = %d\n", p_wrote_ack ->from, p_wrote_ack->to);
+					cache_dbg("finish recving p_wrote_ack.\n");
+		
+		
+				/*执行cmd*/
+				cache_alert("start to call cmd(wrote_ack)...\n");
+				err = cmd->fn(connection, pi, NULL);//在这里执行了cmd 命令
+				if (err) {
+					cache_err("error receiving %s, e: %d l: %d!\n",
+					cmdname(pi->cmd), err, pi->size);
+					return;
+				}
+			cache_alert("finish calling cmd(wrote_ack).\n");
+			
+			work->private = (void *)req;
+			work->info = pi;
+			work->cb = cmd->fn;
+			//cache_queue_work(&connection->sender_work, work);
 		}
 	
 	return;
-	
+	}
 err_out:
 	cache_err("Error occurs when receive on msocket.\n");
 	return;

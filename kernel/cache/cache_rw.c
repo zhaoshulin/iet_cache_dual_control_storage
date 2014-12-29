@@ -1115,7 +1115,9 @@ sync_again:
 				goto sync_again;
 			}else{
 				kmem_cache_free(cache_request_cache, req);
-				
+
+			cache_alert("Have got wrote_ack, go on\n");
+			
 				for (i = 0; i < nr_pages; i++) {
 					struct dcache_page *dcache_page = pages[i];
 					lock_page(dcache_page->page);

@@ -119,6 +119,8 @@ struct p_data_ack {
 struct p_block_wrote {
 	u32	    seq_num;
 	u32	    pad;
+	enum mesi from;
+	enum mesi to;
 } __packed;
 
 struct p_state {
@@ -148,6 +150,8 @@ struct p_state_ack {
 struct p_wrote_ack {
 	u32	    seq_num;
 	u32      pad;
+	enum mesi from;
+	enum mesi to;
 } __packed;
 
 enum cache_packet {

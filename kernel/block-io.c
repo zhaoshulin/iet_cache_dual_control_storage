@@ -25,7 +25,7 @@ blockio_make_write_request(struct iet_volume *volume, struct tio *tio, int rw)
 	loff_t ppos = tio->offset;
 	int err;
 	
-	printk(KERN_ALERT "blockio write: size = %d, ppos = %ld\n",size, ppos);	
+	printk(KERN_ALERT "blockio write: size = %d, page_numers = %d\n",size, (size/PAGE_SIZE));	
 	err = dcache_write(volume->volume_dcache, tio->pvec, tio->pg_cnt, size, ppos);
 
 	return err;
@@ -37,7 +37,7 @@ blockio_make_read_request(struct iet_volume *volume, struct tio *tio, int rw)
 	u32 size = tio->size;
 	loff_t ppos = tio->offset;
 	int err;
-	printk(KERN_ALERT "blockio read: size = %d, ppos = %ld\n",size, ppos);
+	printk(KERN_ALERT "blockio read: size = %d, page_numers = %d\n",size, (size/PAGE_SIZE));
 	err = dcache_read(volume->volume_dcache, tio->pvec, tio->pg_cnt, size, ppos);
 	
 	return err;

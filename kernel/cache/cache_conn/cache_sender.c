@@ -595,6 +595,8 @@ int cache_send_wrote(struct cache_connection *connection,
 	
 	sock = &connection->state;
 	socket = sock->socket;
+
+	cache_alert("try to send wrote...\n");
 	
 	p = conn_prepare_command(connection, sock);
 	if (!p)
@@ -605,20 +607,20 @@ int cache_send_wrote(struct cache_connection *connection,
 	*req = cache_request_alloc(connection, seq_num);
 	cache_request_enqueue(*req);
 
-	cache_dbg("begin to send wrote data.\n");
-	err = __send_command(connection, sock, P_DATA_WRITTEN, sizeof(*p), NULL, size, NIL, NIL);
+	cache_alert("begin to send wrote data.\n");
+	err = __send_command(connection, sock, P_DATA_WRITTEN, sizeof(*p), NULL, size, S, E);
 	if (!err)
 		err = cache_send_all(connection, socket, pages_index, size, 0);
 
 	mutex_unlock(&sock->mutex);  /* locked by conn_prepare_command() */	
 
 	if(err){
-		cache_dbg("send wrote data fail.\n");
+		cache_err("send wrote data fail.\n");
 		cache_request_dequeue(*req);
 		return err;
 	}
 
-	cache_dbg("finish sending wrote data.\n");
+	cache_alert("finish sending wrote data.\n");
 	return err;
 }
 
@@ -666,7 +668,7 @@ int cache_send_wrote_ack(struct cache_connection *connection,  u32 seq_num)
 	p->seq_num = cpu_to_be32(seq_num);
 
 	cache_dbg("begin to send wrote ack.\n");
-	err = __send_command(connection, sock, P_WRITTEN_ACK, sizeof(*p), NULL, 0, NIL, NIL);
+	err = __send_command(connection, sock, P_WRITTEN_ACK, sizeof(*p), NULL, 0, WAITING_ACK, S);
 
 	cache_dbg("finish sending wrote ack.\n");
 	
