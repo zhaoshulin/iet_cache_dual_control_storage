@@ -27,7 +27,7 @@
 
 static int decode_header(struct cache_connection *conn, void *header, struct packet_info *pi)
 { /*header=>pi; 移动pi->data指针到结构体那里*/
-	unsigned int header_size = cache_header_size(conn);
+	size_t header_size = cache_header_size(conn);
 
 	if (header_size == sizeof(struct p_header80) &&
 		   *(__be16 *)header == cpu_to_be16(CACHE_MAGIC)) {
@@ -37,7 +37,7 @@ static int decode_header(struct cache_connection *conn, void *header, struct pac
 		pi->vnr = 0;
 		pi->from = h->from;
 		pi->to = h->to;
-		cache_dbg("decode_header ok now, magic value = 0x%08x.\n", be16_to_cpu(*(__be16 *)header));
+		cache_alert("decode_header ok now, magic value = 0x%08x.\n", be16_to_cpu(*(__be16 *)header));
 	} else {
 		cache_err("Wrong magic value 0x%08x.\n",
 			 be16_to_cpu(*(__be16 *)header));
@@ -57,7 +57,7 @@ int cache_recv_short(struct socket *sock, void *buf, size_t size, int flags)
 	struct msghdr msg = {
 		.msg_iovlen = 1,
 		.msg_iov = (struct iovec *)&iov,
-		.msg_flags = (flags ? flags : MSG_WAITALL | MSG_NOSIGNAL)
+		.msg_flags = (flags ? flags : MSG_WAITALL | MSG_NOSIGNAL),
 	};
 	int rv;
 
@@ -120,9 +120,11 @@ int cache_recv_header(struct cache_connection *connection, struct cache_socket *
 	err = cache_recv_all_warn(cache_socket, buffer, cache_header_size(connection));
 	if (err)
 		return err;
-
+	cache_alert("receive header ok\n");
+	
 	err = decode_header(connection, buffer, pi);
 	connection->last_received = jiffies;
+	
 
 	return err;
 }
@@ -173,6 +175,7 @@ static struct cio* read_in_block(struct cache_connection *connection, sector_t s
 		unsigned len = min_t(int, ds, PAGE_SIZE);
 		page = req->pvec[i];
 		data = kmap(page);
+		cache_alert("try to read_in %d page.\n", i);
 		err = cache_recv_all_warn(&connection->data, data, len);
 		// connection->data(socket) ---> data(buffer)
 		
@@ -1006,7 +1009,7 @@ int move_page_from_to(struct dcache_page *dcache_page, enum mesi from, enum mesi
 	spin_lock_irq(&s_list.s_lock);
 	cache_alert("have got e_lock and s_lock\n");
 	list_for_each_entry(iterator, &e_list.E_LIST, mesi_list){
-		cache_dbg("going through e_list...\n");
+		//cache_dbg("going through e_list...\n");
 		if(dcache_page->dcache == iterator->dcache && dcache_page->index == iterator->index){
 			list_move(&iterator->mesi_list, &s_list.S_LIST);
 			spin_unlock_irq(&s_list.s_lock);
@@ -1029,7 +1032,7 @@ int move_page_from_to(struct dcache_page *dcache_page, enum mesi from, enum mesi
 	spin_lock_irq(&w_list.w_lock);
 	cache_alert("have got e_lock and w_lock\n");
 	list_for_each_entry(iterator, &e_list.E_LIST, mesi_list){
-		cache_dbg("going through e_list...\n");
+		//cache_dbg("going through e_list...\n");
 		if(dcache_page->dcache == iterator->dcache && dcache_page->index == iterator->index){
 			list_move(&iterator->mesi_list, &w_list.W_LIST);
 			spin_unlock_irq(&w_list.w_lock);
@@ -1073,7 +1076,7 @@ int move_page_from_to(struct dcache_page *dcache_page, enum mesi from, enum mesi
 	spin_lock_irq(&w_list.w_lock);
 	cache_alert("have got s_lock and w_lock\n");
 	list_for_each_entry(iterator, &s_list.S_LIST, mesi_list){
-		cache_dbg("going through s_list...\n");
+		//cache_dbg("going through s_list...\n");
 		if(dcache_page->dcache == iterator->dcache && dcache_page->index == iterator->index){
 			list_move(&iterator->mesi_list, &w_list.W_LIST);
 			spin_unlock_irq(&w_list.w_lock);
@@ -1095,7 +1098,7 @@ int move_page_from_to(struct dcache_page *dcache_page, enum mesi from, enum mesi
 	spin_lock_irq(&w_list.w_lock);
 	cache_alert("have got e_lock and w_lock\n");
 	list_for_each_entry(iterator, &w_list.W_LIST, mesi_list){
-		cache_dbg("going through w_list...\n");
+		//cache_dbg("going through w_list...\n");
 		if(dcache_page->dcache == iterator->dcache && dcache_page->index == iterator->index){
 			list_move(&iterator->mesi_list, &e_list.E_LIST);
 			spin_unlock_irq(&w_list.w_lock);
@@ -1117,7 +1120,7 @@ int move_page_from_to(struct dcache_page *dcache_page, enum mesi from, enum mesi
 	spin_lock_irq(&w_list.w_lock);
 	cache_alert("have got s_lock and w_lock\n");
 	list_for_each_entry(iterator, &w_list.W_LIST, mesi_list){
-		cache_dbg("going through w_list...\n");
+		//cache_dbg("going through w_list...\n");
 		if(dcache_page->dcache == iterator->dcache && dcache_page->index == iterator->index){
 			list_move(&iterator->mesi_list, &s_list.S_LIST);
 			spin_unlock_irq(&w_list.w_lock);
@@ -1594,7 +1597,7 @@ static int receive_wrote_zsl(struct cache_connection *connection, struct packet_
 
 	cache_alert("begin to receive wrote data.\n");
 	
-	err = cache_recv_all_warn(&connection->state, data, size);
+	err = cache_recv_all_warn(&connection->data, data, size);
 	if (err) {
 		cache_err("Error occurs when receive wrote data...\n");
 		kfree(data);
@@ -1970,6 +1973,8 @@ void cache_socket_receive(struct cache_connection *connection)
 		struct cache_work *work;
 		struct p_data *p_data;
 		struct p_data_ack *p_data_ack;
+		struct p_block_wrote *p_block_wrote;
+		struct p_wrote_ack *p_wrote_ack;
 		struct cio *req;
 		
 		pi = kmalloc(sizeof(*pi), GFP_KERNEL);
@@ -1985,6 +1990,7 @@ void cache_socket_receive(struct cache_connection *connection)
 		}
 
 		/*接收命令，如P_DATA*/
+		cache_alert("enter into cache_socket_receive...\n");
 		err = cache_recv_header(connection, &connection->data, pi);
 		if(err < 0){
 			if (err == -EAGAIN && peer_is_good)
@@ -1992,7 +1998,7 @@ void cache_socket_receive(struct cache_connection *connection)
 			return;
 		}
 		
-		WARN_ON((pi->cmd != P_DATA) && (pi->cmd != P_DATA_ACK));
+		//WARN_ON((pi->cmd != P_DATA) && (pi->cmd != P_DATA_ACK));
 		cmd = &cache_cmd_handler[pi->cmd];
 		if (unlikely(pi->cmd >= ARRAY_SIZE(cache_cmd_handler) || !cmd->fn)) {
 			cache_err("Unexpected data packet %s (0x%04x)\n",
@@ -2071,11 +2077,16 @@ void cache_socket_receive(struct cache_connection *connection)
 				kfree(pi);
 				kfree(work);
 			}
+
+		
+			if(shs){
+				err = cache_recv_all_warn(&connection->data, p_data_ack, shs);
+				if(err)
+					return;
+				pi->size -= shs;
+			}
+			
 			pi->data = p_data_ack;
-			err = cache_recv_all_warn(&connection->data, p_data_ack, shs);
-			if (err)
-				return;
-			pi->size -= shs;
 			cache_dbg("finish recving p_data_ack.\n");
 
 
@@ -2094,9 +2105,88 @@ void cache_socket_receive(struct cache_connection *connection)
 
 		//	cache_queue_work(&connection->sender_work, work);
 		}
+
+		
+				else if(pi->cmd == P_DATA_WRITTEN){
+
+					cache_alert("DATA_WRITITEN\n");
+					/*接收结构体*/
+					p_block_wrote = kmalloc(sizeof(*p_block_wrote), GFP_KERNEL);
+					if(!p_block_wrote){
+						cache_alert("No free memory.\n");
+						kfree(pi);
+						kfree(work);
+					}
+					
+					if(shs){
+						err = cache_recv_all_warn(&connection->data, p_block_wrote, shs);
+						if (err)
+							goto err_out;
+						pi->size -= shs;
+					}
+					pi->data = p_block_wrote;
+					cache_dbg("recved p_wrote: from = %d, to = %d\n", p_block_wrote ->from, p_block_wrote->to);
+					cache_dbg("finish recving p_wrote.\n");
+		
+		
+				/*执行cmd*/
+				cache_alert("start to call cmd(wrote)...\n");
+				err = cmd->fn(connection, pi, NULL);//在这里执行了cmd 命令
+				if (err) {
+					cache_err("error receiving %s, e: %d l: %d!\n",
+					cmdname(pi->cmd), err, pi->size);
+					return;
+				}
+			cache_alert("finish calling cmd(wrote).\n");
+			
+			work->private = (void *)req;
+			work->info = pi;
+			work->cb = cmd->fn;
+			//cache_queue_work(&connection->sender_work, work);
+		}
+
+		else if(pi->cmd == P_WRITTEN_ACK){
+					cache_alert("WRITITEN_ACK\n");
+		
+					/*接收结构体*/
+					p_wrote_ack = kmalloc(sizeof(*p_wrote_ack), GFP_KERNEL);
+					if(!p_wrote_ack){
+						cache_alert("No free memory.\n");
+						kfree(pi);
+						kfree(work);
+					}
+					
+					if(shs){
+						err = cache_recv_all_warn(&connection->data, p_wrote_ack, shs);
+						if (err)
+							goto err_out;
+						pi->size -= shs;
+					}
+					pi->data = p_wrote_ack;
+					cache_dbg("recved p_wrote_ack: from = %d, to = %d\n", p_wrote_ack ->from, p_wrote_ack->to);
+					cache_dbg("finish recving p_wrote_ack.\n");
+		
+		
+				/*执行cmd*/
+				cache_alert("start to call cmd(wrote_ack)...\n");
+				err = cmd->fn(connection, pi, NULL);//在这里执行了cmd 命令
+				if (err) {
+					cache_err("error receiving %s, e: %d l: %d!\n",
+					cmdname(pi->cmd), err, pi->size);
+					return;
+				}
+			cache_alert("finish calling cmd(wrote_ack).\n");
+			
+			work->private = (void *)req;
+			work->info = pi;
+			work->cb = cmd->fn;
+			//cache_queue_work(&connection->sender_work, work);
+		}
+	
 		
 	}
-	
+err_out:
+	cache_err("Error occurs when receive on msocket.\n");	
 	return ;
 }
 
@@ -2110,7 +2200,7 @@ void cache_msocket_receive(struct cache_connection *connection)
 	int err = 0;
 
 	while (get_t_state(&connection->asender) == RUNNING) {
-		cache_alert("enter into while{} in cache_msocket_receive\n");
+		//cache_alert("enter into while{} in cache_msocket_receive\n");
 		struct packet_info *pi;
 		struct data_cmd *cmd;
 		struct cache_work *work;
@@ -2135,11 +2225,14 @@ void cache_msocket_receive(struct cache_connection *connection)
 		
 
 		/*接收命令，如P_STATE*/
-		cache_alert("start to cache_recv_header\n");
+		//cache_alert("start to cache_recv_header\n");
 		err = cache_recv_header(connection, &connection->state, pi);
 		if(err < 0){
 			if (err == -EAGAIN && peer_is_good)
-				continue;
+				{
+					//cache_alert("EAGAIN\n");
+					continue;
+				}
 			goto err_out;
 		}
 		cache_alert("finish cache_recv_header\n");

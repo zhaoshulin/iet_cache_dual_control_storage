@@ -38,7 +38,7 @@ char echo_host[PATH_LEN]="127.0.0.1";
 char echo_peer[PATH_LEN]="127.0.0.1";
 
 char state_host[PATH_LEN] = "10.17.11.41";
-char state_peer[PATH_LEN] = "10.17.11.12";
+char state_peer[PATH_LEN] = "10.17.11.40";
 
 char data_host[PATH_LEN] = "192.168.56.101";
 char data_peer[PATH_LEN] = "192.168.56.102";

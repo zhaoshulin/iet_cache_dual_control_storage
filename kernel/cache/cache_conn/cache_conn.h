@@ -72,7 +72,8 @@ struct p_header80 {
 	enum mesi from;
 	enum mesi to;
 	//enum rwwb rw;
-} __packed;
+//} __packed;
+};
 
 enum rwwb{
 	//READ_HIT,
@@ -95,7 +96,9 @@ struct p_data {
 	enum rwwb rw;
 	enum mesi from;
 	enum mesi to;
-} __packed;
+//} __packed;
+};
+
 
 struct p_block_ack {
 	u64	    sector;
@@ -103,7 +106,9 @@ struct p_block_ack {
 	u32	    blksize;
 	u32	    seq_num;
 	
-} __packed;
+//} __packed;
+};
+
 
 struct p_data_ack {
 	u64	    sector;
@@ -114,14 +119,18 @@ struct p_data_ack {
 	enum rwwb rw;
 	enum mesi from;
 	enum mesi to;
-} __packed;
+//} __packed;
+};
+
 
 struct p_block_wrote {
 	u32	    seq_num;
 	u32	    pad;
 	enum mesi from;
 	enum mesi to;
-} __packed;
+//} __packed;
+};
+
 
 struct p_state {
 	u64 sector;
@@ -133,7 +142,9 @@ struct p_state {
 	enum rwwb rw;
 	//enum mesi from;
 	//enum mesi to;
-} __packed;
+//} __packed;
+};
+
 
 
 struct p_state_ack {
@@ -145,14 +156,18 @@ struct p_state_ack {
 	enum rwwb rw;
 	enum mesi from;
 	enum mesi to;
-} __packed;
+//} __packed;
+};
+
 
 struct p_wrote_ack {
 	u32	    seq_num;
 	u32      pad;
 	enum mesi from;
 	enum mesi to;
-} __packed;
+//} __packed;
+};
+
 
 enum cache_packet {
 	P_DATA		      = 0x00, //Êý¾Ý
@@ -416,7 +431,7 @@ static inline void cache_thread_restart_nowait(struct cache_thread *thi)
 	_cache_thread_stop(thi, true, false);
 }
 
-unsigned int cache_header_size(struct cache_connection *conn);
+size_t cache_header_size(struct cache_connection *conn);
 
 int receive_first_packet(struct cache_connection *connection, struct socket *sock);
 int send_first_packet(struct cache_connection *connection, struct cache_socket *sock,

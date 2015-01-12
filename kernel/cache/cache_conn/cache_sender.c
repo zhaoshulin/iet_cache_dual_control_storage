@@ -30,7 +30,7 @@
  * word aligned on 64-bit architectures.  (The bitmap send and receive code
  * relies on this.)
  */
-unsigned int cache_header_size(struct cache_connection *conn)
+size_t cache_header_size(struct cache_connection *conn)
 {
 	return sizeof(struct p_header80);
 }
@@ -593,7 +593,7 @@ int cache_send_wrote(struct cache_connection *connection,
 	int size = sizeof(pgoff_t) * count;
 	u32 seq_num;
 	
-	sock = &connection->state;
+	sock = &connection->data;
 	socket = sock->socket;
 
 	cache_alert("try to send wrote...\n");
@@ -658,7 +658,7 @@ int cache_send_wrote_ack(struct cache_connection *connection,  u32 seq_num)
 	struct socket * socket;
 	int err;
 	
-	sock = &connection->state;
+	sock = &connection->data;
 	socket = sock->socket;
 	
 	p = conn_prepare_command(connection, sock);

@@ -956,7 +956,7 @@ retry:
 	
 
 	if (err == 0) {
-		cache_thread_start(&connection->asender);
+		//cache_thread_start(&connection->asender);
 		complete(&thi->start);
 		cache_socket_receive(connection);
 		

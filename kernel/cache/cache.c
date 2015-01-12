@@ -523,7 +523,7 @@ again:
 		move_page_from_to(dcache_page, NIL, WAITING_ACK);
 
 		if(from == REQUEST_FROM_OUT && peer_is_good){
-			cache_alert("waiting for data_ack\n");
+			cache_alert("waiting for write_miss data_ack\n");
 			if(wait_for_completion_timeout(&req->done, HZ*15) == 0){
 				cache_warn("timeout when wait for data ack.\n");
 				cache_request_dequeue(req);				
@@ -535,7 +535,7 @@ again:
 	}
 	
 	unlock_page(dcache_page->page);
-	cache_alert("have unlocked page_lock\n");
+	cache_alert("have unlocked page_lock\n\n");
 
 
 		
@@ -663,7 +663,7 @@ again:
 		
 
 		if(from == REQUEST_FROM_OUT && peer_is_good){
-			cache_alert("waiting for data_ack\n");
+			cache_alert("waiting for write_hit data_ack\n");
 			if(wait_for_completion_timeout(&req->done, HZ*15) == 0){
 				cache_warn("timeout when wait for data ack.\n");
 				cache_request_dequeue(req);				
@@ -674,7 +674,7 @@ again:
 		cache_alert("WH: finish sending data\n");
 	}
 	unlock_page(dcache_page->page);
-	cache_alert("have unlocked page_lock\n");
+	cache_alert("have unlocked page_lock\n\n");
 
 
 
